@@ -11,7 +11,6 @@ import com.lesfurets.jenkins.unit.BasePipelineTest
 import com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration
 import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
 
-
 class PipelineTestRunner extends BasePipelineTest {
 
     PipelineTestRunner() {
@@ -106,87 +105,104 @@ class PipelineTestRunner extends BasePipelineTest {
         Map scriptHandlers = [
                 'git-rev-parse-head': [
                         regexp: /git rev-parse HEAD/,
-                        handler: { scriptParams -> return '29480a51' }],
+                        handler: { scriptParams -> return '29480a51' }
+                ],
                 'git-show-name': [
                         regexp: /git show -s --pretty=%an/,
-                        handler: { scriptParams -> return 'Test Username' }],
+                        handler: { scriptParams -> return 'Test Username' }
+                ],
                 'git-show-email': [
                         regexp: /git show -s --pretty=%ae/,
-                        handler: { scriptParams -> return 'TestUsername@mail.some' }],
+                        handler: { scriptParams -> return 'TestUsername@mail.some' }
+                ],
                 'git-status': [
                         regexp: /git status */,
-                        handler: { scriptParams -> return 'nothing to commit, working tree clean' }]
+                        handler: { scriptParams -> return 'nothing to commit, working tree clean' }
+                ]
         ]
         Map  mockMethods = [
                 string: [[Map.class], { stringParam ->
-                    return [(stringParam.name): stringParam?.defaultValue]
-                }],
+                        return [(stringParam.name): stringParam?.defaultValue]
+                    }
+                ],
                 booleanParam: [[Map.class], { Map boolParam ->
-                    return [(boolParam.name): boolParam.defaultValue.toString()]
-                }],
+                        return [(boolParam.name): boolParam.defaultValue.toString()]
+                    }
+                ],
                 parameters: [[ArrayList], { paramsList ->
-                    paramsList.each { param ->
-                        param.each { name, val ->
-                            // carefully override parameters to not rewrite the
-                            // mocked ones
-                            Map params = binding.getVariable('params') as Map
-                            if (params == null) {
-                                params = [:]
-                                binding.setVariable('params', params)
-                            }
-                            if ((val != null) && (params[name] == null)) {
-                                params[name] = val
-                                binding.setVariable('params', params)
+                        paramsList.each { param ->
+                            param.each { name, val ->
+                                // carefully override parameters to not rewrite the
+                                // mocked ones
+                                Map params = binding.getVariable('params') as Map
+                                if (params == null) {
+                                    params = [:]
+                                    binding.setVariable('params', params)
+                                }
+                                if ((val != null) && (params[name] == null)) {
+                                    params[name] = val
+                                    binding.setVariable('params', params)
+                                }
                             }
                         }
                     }
-                }],
+                ],
                 sh: [[Map.class], { shellMap ->
-                    def res = scriptHandlers.find {
-                        shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
+                        def res = scriptHandlers.find {
+                            shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
 
-                    if (res == null) {
-                        if (shellMap.returnStdout) {
-                            res = "dummy response"
-                        } else if (shellMap.returnStatus) {
-                            res = 0
+                        if (res == null) {
+                            if (shellMap.returnStdout) {
+                                res = "dummy response"
+                            } else if (shellMap.returnStatus) {
+                                res = 0
+                            }
                         }
-                    }
-                    return res
+                        return res
 
-                }],
-                emailext: [[LinkedHashMap.class], { mailParams -> }],
+                    }
+                ],
+                emailext: [
+                        [LinkedHashMap.class], { mailParams -> }
+                ],
 
                 findFiles: [[Map.class], { fileParams ->
-                    return [length:1] }],
+                    return [length:1] }
+                ],
                 readFile: [[String.class], { file ->
-                    return Files.contentOf(new File(file), Charset.forName("UTF-8"))
-                }],
+                        return Files.contentOf(new File(file), Charset.forName("UTF-8"))
+                    }
+                ],
                 httpRequest: [[LinkedHashMap.class], { requestParams ->
-                    new Expando(status: 200, content: "Mocked http request DONE")}],
+                    new Expando(status: 200, content: "Mocked http request DONE")}
+                ],
                 usernamePassword: [[Map.class], { creds ->
-                    return creds
-                }],
+                        return creds
+                    }
+                ],
                 sshUserPrivateKey: [[Map.class], { creds ->
-                    return creds
-                }],
+                        return creds
+                    }
+                ],
                 sshagent: [[List.class, Closure.class], { list, cl ->
-                    cl()
-                }],
+                        cl()
+                    }
+                ],
                 withCredentials: [[List.class, Closure.class], { list, closure ->
-                    list.forEach {
-                        it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
-                            binding.setVariable(v, "$v")
+                        list.forEach {
+                            it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
+                                binding.setVariable(v, "$v")
+                            }
                         }
-                    }
-                    def res = closure.call()
-                    list.forEach {
-                        it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
-                            binding.setVariable(v, "$v")
+                        def res = closure.call()
+                        list.forEach {
+                            it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
+                                binding.setVariable(v, "$v")
+                            }
                         }
+                        return res
                     }
-                    return res
-                }],
+                ],
                 stash: [[Map.class], null],
                 unstash: [[Map.class], null]
         ]
@@ -235,5 +251,3 @@ class PipelineTestRunner extends BasePipelineTest {
         }
     }
 }
-
-
