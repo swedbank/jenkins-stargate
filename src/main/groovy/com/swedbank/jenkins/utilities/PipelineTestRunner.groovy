@@ -6,6 +6,7 @@ import org.assertj.core.util.Files
 import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 
+import static com.lesfurets.jenkins.unit.MethodSignature.method
 import static com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration.library
 
 import com.lesfurets.jenkins.unit.BasePipelineTest
@@ -125,13 +126,13 @@ class PipelineTestRunner extends BasePipelineTest {
                 ]
         ]
         Map<MethodSignature, Closure> mockMethods = [
-                (MethodSignature.method('string', Map.class)): { stringParam ->
+                (method('string', Map.class))                         : { stringParam ->
                     return [(stringParam.name): stringParam?.defaultValue]
                 },
-                (MethodSignature.method('booleanParam', Map.class)): { Map boolParam ->
+                (method('booleanParam', Map.class))                   : { Map boolParam ->
                     return [(boolParam.name): boolParam.defaultValue.toString()]
                 },
-                (MethodSignature.method('parameters', ArrayList.class)): { paramsList ->
+                (method('parameters', ArrayList.class))               : { paramsList ->
                     paramsList.each { param ->
                         param.each { name, val ->
                             // carefully override parameters to not rewrite the
@@ -148,7 +149,7 @@ class PipelineTestRunner extends BasePipelineTest {
                         }
                     }
                 },
-                (MethodSignature.method('sh', Map.class)): { shellMap ->
+                (method('sh', Map.class))                             : { shellMap ->
                     def res = scriptHandlers.find {
                         shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
 
@@ -162,25 +163,25 @@ class PipelineTestRunner extends BasePipelineTest {
                     return res
                 },
 
-                (MethodSignature.method('sh', String.class)): { scriptStr ->
+                (method('sh', String.class))                          : { scriptStr ->
                     def res = scriptHandlers.find {
                         scriptStr ==~ it.value.regexp }?.value?.handler(shellMap)
                     return res == null ? 0 : res
                 },
 
-                (MethodSignature.method('emailext', LinkedHashMap.class)): { mailParams -> },
-                (MethodSignature.method('findFiles', Map.class)): { fileParams -> return [length:1] },
-                (MethodSignature.method('readFile', String.class)): { file ->
+                (method('emailext', LinkedHashMap.class))             : { mailParams -> },
+                (method('findFiles', Map.class))                      : { fileParams -> return [length:1] },
+                (method('readFile', String.class))                    : { file ->
                     return Files.contentOf(new File(file), Charset.forName('UTF-8'))
                 },
-                (MethodSignature.method('httpRequest', LinkedHashMap.class)): { requestParams ->
+                (method('httpRequest', LinkedHashMap.class))          : { requestParams ->
                     new Expando(status: 200, content: 'Mocked http request DONE')
                 },
-                (MethodSignature.method('usernamePassword', Map.class)): { creds -> return creds },
+                (method('usernamePassword', Map.class))               : { creds -> return creds },
 
-                (MethodSignature.method('sshUserPrivateKey', Map.class)): { creds -> return creds },
-                (MethodSignature.method('sshagent', List.class, Closure.class)): { list, cl -> cl() },
-                (MethodSignature.method('withCredentials', List.class, Closure.class)): { list, closure ->
+                (method('sshUserPrivateKey', Map.class))              : { creds -> return creds },
+                (method('sshagent', List.class, Closure.class))       : { list, cl -> cl() },
+                (method('withCredentials', List.class, Closure.class)): { list, closure ->
                     list.forEach {
                         it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
                             binding.setVariable(v, "$v")
@@ -194,8 +195,8 @@ class PipelineTestRunner extends BasePipelineTest {
                     }
                     return res
                 },
-                (MethodSignature.method('stash', Map.class)): null,
-                (MethodSignature.method('unstash', Map.class)): null
+                (method('stash', Map.class))                          : null,
+                (method('unstash', Map.class))                        : null
         ]
 
         Boolean printStack = true
@@ -238,7 +239,7 @@ class PipelineTestRunner extends BasePipelineTest {
         }
 
         def method(String name, List<Class> args = [], Closure closure) {
-            mockMethods.put(MethodSignature.method(
+            mockMethods.put(method(
                     name, args.toArray(new Class[args?.size()])), closure)
         }
     }
