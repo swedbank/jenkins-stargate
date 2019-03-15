@@ -1,5 +1,6 @@
 package com.swedbank.jenkins.utilities
 
+import com.lesfurets.jenkins.unit.MethodSignature
 import org.assertj.core.util.Files
 
 import java.nio.charset.Charset
@@ -76,8 +77,11 @@ class PipelineTestRunner extends BasePipelineTest {
     }
 
     def protected registerMockMethod(PipelineRunContext context) {
-        context.mockMethods.each { name, params ->
-            helper.registerAllowedMethod(name, params.first() as List<Class>, params.last() as Closure) }
+        context.mockMethods.each { MethodSignature signature, closure ->
+            if (signature != null) {
+                helper.registerAllowedMethod(signature, closure ?: { -> })
+            }
+        }
     }
 
     def protected registerSharedLibs(PipelineRunContext context) {
@@ -120,91 +124,78 @@ class PipelineTestRunner extends BasePipelineTest {
                         handler: { scriptParams -> return 'nothing to commit, working tree clean' }
                 ]
         ]
-        Map  mockMethods = [
-                string: [[Map.class], { stringParam ->
-                        return [(stringParam.name): stringParam?.defaultValue]
-                    }
-                ],
-                booleanParam: [[Map.class], { Map boolParam ->
-                        return [(boolParam.name): boolParam.defaultValue.toString()]
-                    }
-                ],
-                parameters: [[ArrayList], { paramsList ->
-                        paramsList.each { param ->
-                            param.each { name, val ->
-                                // carefully override parameters to not rewrite the
-                                // mocked ones
-                                Map params = binding.getVariable('params') as Map
-                                if (params == null) {
-                                    params = [:]
-                                    binding.setVariable('params', params)
-                                }
-                                if ((val != null) && (params[name] == null)) {
-                                    params[name] = val
-                                    binding.setVariable('params', params)
-                                }
+        Map<MethodSignature, Closure> mockMethods = [
+                (MethodSignature.method('string', Map.class)): { stringParam ->
+                    return [(stringParam.name): stringParam?.defaultValue]
+                },
+                (MethodSignature.method('booleanParam', Map.class)): { Map boolParam ->
+                    return [(boolParam.name): boolParam.defaultValue.toString()]
+                },
+                (MethodSignature.method('parameters', ArrayList.class)): { paramsList ->
+                    paramsList.each { param ->
+                        param.each { name, val ->
+                            // carefully override parameters to not rewrite the
+                            // mocked ones
+                            Map params = binding.getVariable('params') as Map
+                            if (params == null) {
+                                params = [:]
+                                binding.setVariable('params', params)
+                            }
+                            if ((val != null) && (params[name] == null)) {
+                                params[name] = val
+                                binding.setVariable('params', params)
                             }
                         }
                     }
-                ],
-                sh: [[Map.class], { shellMap ->
-                        def res = scriptHandlers.find {
-                            shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
+                },
+                (MethodSignature.method('sh', Map.class)): { shellMap ->
+                    def res = scriptHandlers.find {
+                        shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
 
-                        if (res == null) {
-                            if (shellMap.returnStdout) {
-                                res = "dummy response"
-                            } else if (shellMap.returnStatus) {
-                                res = 0
-                            }
+                    if (res == null) {
+                        if (shellMap.returnStdout) {
+                            res = 'dummy response'
+                        } else if (shellMap.returnStatus) {
+                            res = 0
                         }
-                        return res
+                    }
+                    return res
+                },
 
-                    }
-                ],
-                emailext: [
-                        [LinkedHashMap.class], { mailParams -> }
-                ],
+                (MethodSignature.method('sh', String.class)): { scriptStr ->
+                    def res = scriptHandlers.find {
+                        scriptStr ==~ it.value.regexp }?.value?.handler(shellMap)
+                    return res == null ? 0 : res
+                },
 
-                findFiles: [[Map.class], { fileParams ->
-                    return [length:1] }
-                ],
-                readFile: [[String.class], { file ->
-                        return Files.contentOf(new File(file), Charset.forName("UTF-8"))
-                    }
-                ],
-                httpRequest: [[LinkedHashMap.class], { requestParams ->
-                    new Expando(status: 200, content: "Mocked http request DONE")}
-                ],
-                usernamePassword: [[Map.class], { creds ->
-                        return creds
-                    }
-                ],
-                sshUserPrivateKey: [[Map.class], { creds ->
-                        return creds
-                    }
-                ],
-                sshagent: [[List.class, Closure.class], { list, cl ->
-                        cl()
-                    }
-                ],
-                withCredentials: [[List.class, Closure.class], { list, closure ->
-                        list.forEach {
-                            it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
-                                binding.setVariable(v, "$v")
-                            }
+                (MethodSignature.method('emailext', LinkedHashMap.class)): { mailParams -> },
+                (MethodSignature.method('findFiles', Map.class)): { fileParams -> return [length:1] },
+                (MethodSignature.method('readFile', String.class)): { file ->
+                    return Files.contentOf(new File(file), Charset.forName('UTF-8'))
+                },
+                (MethodSignature.method('httpRequest', LinkedHashMap.class)): { requestParams ->
+                    new Expando(status: 200, content: 'Mocked http request DONE')
+                },
+                (MethodSignature.method('usernamePassword', Map.class)): { creds -> return creds },
+
+                (MethodSignature.method('sshUserPrivateKey', Map.class)): { creds -> return creds },
+                (MethodSignature.method('sshagent', List.class, Closure.class)): { list, cl -> cl() },
+                (MethodSignature.method('withCredentials', List.class, Closure.class)): { list, closure ->
+                    list.forEach {
+                        it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
+                            binding.setVariable(v, "$v")
                         }
-                        def res = closure.call()
-                        list.forEach {
-                            it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
-                                binding.setVariable(v, "$v")
-                            }
-                        }
-                        return res
                     }
-                ],
-                stash: [[Map.class], null],
-                unstash: [[Map.class], null]
+                    def res = closure.call()
+                    list.forEach {
+                        it.findAll { it.key.endsWith('Variable') }?.each { k, v ->
+                            binding.setVariable(v, "$v")
+                        }
+                    }
+                    return res
+                },
+                (MethodSignature.method('stash', Map.class)): null,
+                (MethodSignature.method('unstash', Map.class)): null
         ]
 
         Boolean printStack = true
@@ -247,7 +238,8 @@ class PipelineTestRunner extends BasePipelineTest {
         }
 
         def method(String name, List<Class> args = [], Closure closure) {
-            mockMethods.put(name, [args, closure])
+            mockMethods.put(MethodSignature.method(
+                    name, args.toArray(new Class[args?.size()])), closure)
         }
     }
 }
