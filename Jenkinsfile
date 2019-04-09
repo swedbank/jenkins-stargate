@@ -1,5 +1,5 @@
 #!groovy
 
-@Library('jenkins-shared-stages') _
+@Library(['jenkins-shared-utilities', 'jenkins-shared-stages', 'jenkins-shared-pipelines', 'jenkins-shared-library']) _
 
-infraServiceProjectsPipeline{}
+jenkinsInfraComponentPipeline{}
