@@ -1,6 +1,8 @@
 package com.swedbank.jenkins.utilities
 
 import com.lesfurets.jenkins.unit.MethodSignature
+import com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration
+import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
 import org.assertj.core.util.Files
 
 import java.nio.charset.Charset
@@ -9,14 +11,19 @@ import java.text.SimpleDateFormat
 import static com.lesfurets.jenkins.unit.MethodSignature.method
 import static com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration.library
 
-import com.lesfurets.jenkins.unit.BasePipelineTest
-import com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration
-import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
-
-class PipelineTestRunner extends BasePipelineTest {
+class PipelineTestRunner extends BasePipelineClassLoaderTest {
+    /**
+     * This flags indicates whether the helper should try to load script under test as the compiled
+     * class or as the script source file.
+     * For the first case we can get test coverage unblocked as the benefit, but this force us
+     * to keep vars in the sourceSets.main.groovy.srcDirs
+     */
+    Boolean preferClassLoading = true
+    PipelineTestHelperClassLoader internalHelper;
 
     PipelineTestRunner() {
         this.setUp()
+        internalHelper = helper
     }
 
     def run(Closure cl) {
@@ -47,7 +54,7 @@ class PipelineTestRunner extends BasePipelineTest {
         registerMockMethod(context)
         printInfo(context)
 
-        return loadScript(context.scriptPath)
+        return internalHelper.loadScript(context.scriptPath, this.binding, preferClassLoading)
     }
 
     def protected runContext(PipelineRunContext context) {
@@ -56,7 +63,7 @@ class PipelineTestRunner extends BasePipelineTest {
         registerMockMethod(context)
         printInfo(context)
 
-        runScript(context.scriptPath)
+        internalHelper.runScript(context.scriptPath, binding, preferClassLoading)
         if (context.printStack) {
             printCallStack()
         }
@@ -80,13 +87,13 @@ class PipelineTestRunner extends BasePipelineTest {
     def protected registerMockMethod(PipelineRunContext context) {
         context.mockMethods.each { MethodSignature signature, closure ->
             if (signature != null) {
-                helper.registerAllowedMethod(signature, closure ?: { -> })
+                internalHelper.registerAllowedMethod(signature, closure ?: { -> })
             }
         }
     }
 
     def protected registerSharedLibs(PipelineRunContext context) {
-        context.sharedLibs.collect { helper.registerSharedLibrary(it) }
+        context.sharedLibs.collect { internalHelper.registerSharedLibrary(it) }
     }
 
     /**
