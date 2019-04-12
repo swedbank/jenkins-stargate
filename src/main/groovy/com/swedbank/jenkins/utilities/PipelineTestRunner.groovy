@@ -165,7 +165,7 @@ class PipelineTestRunner extends BasePipelineTest {
 
                 (method('sh', String.class))                          : { scriptStr ->
                     def res = scriptHandlers.find {
-                        scriptStr ==~ it.value.regexp }?.value?.handler(shellMap)
+                        scriptStr ==~ it.value.regexp }?.value?.handler([script: scriptStr])
                     return res == null ? 0 : res
                 },
 
@@ -195,8 +195,8 @@ class PipelineTestRunner extends BasePipelineTest {
                     }
                     return res
                 },
-                (method('stash', Map.class))                          : null,
-                (method('unstash', Map.class))                        : null
+                (method('stash', Map.class))                          : { map -> },
+                (method('unstash', Map.class))                        : { map -> }
         ]
 
         Boolean printStack = true

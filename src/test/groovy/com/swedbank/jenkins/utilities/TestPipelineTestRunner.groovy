@@ -97,4 +97,21 @@ class TestPipelineTestRunner extends Specification {
         then:
             stepScript.params['user_param'] == "JOB_PARAMETER"
     }
+
+    def "verify sh mocking with script handler"() {
+        when:
+        def isMockScriptCalled = false
+        def stepScript = runner.load {
+            sharedLibrary("test-lib", 'src/test/resources/')
+            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            scriptHandlers['test-sh']  = [
+                            regexp: /echo 123/,
+                            handler: { scriptParams -> return isMockScriptCalled = true }
+                    ]
+        }
+
+        then:
+        stepScript.varScript() == 'var script'
+        isMockScriptCalled
+    }
 }
