@@ -114,4 +114,17 @@ class TestPipelineTestRunner extends Specification {
         stepScript.varScript() == 'var script'
         isMockScriptCalled
     }
+
+    def "verify library load with the script loader"() {
+        when:
+        runner.preferClassLoading = false
+        def stepScript = runner.load {
+            sharedLibrary("test-lib", 'src/test/resources/')
+            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+        }
+
+        then:
+        stepScript.varScript() == 'var script'
+        stepScript() == 'testresult'
+    }
 }
