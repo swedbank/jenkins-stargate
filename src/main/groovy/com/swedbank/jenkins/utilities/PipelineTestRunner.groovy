@@ -3,6 +3,7 @@ package com.swedbank.jenkins.utilities
 import com.lesfurets.jenkins.unit.MethodSignature
 import com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration
 import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
+import com.swedbank.jenkins.utilities.exception.WhenExitException
 import org.assertj.core.util.Files
 
 import java.nio.charset.Charset
@@ -19,11 +20,15 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
      * to keep vars in the sourceSets.main.groovy.srcDirs
      */
     Boolean preferClassLoading = true
-    PipelineTestHelperClassLoader internalHelper;
+    PipelineTestHelperClassLoader internalHelper
 
     PipelineTestRunner() {
         this.setUp()
         internalHelper = helper
+        // Add support to the helper to unregister a method
+        internalHelper.metaClass.unRegisterAllowedMethod = { String name, List<Class> args ->
+            allowedMethodCallbacks.remove(method(name, args.toArray(new Class[args.size()])))
+        }
     }
 
     def run(Closure cl) {
@@ -49,6 +54,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
      * Runs the script
      */
     def protected loadContext(PipelineRunContext context) {
+        context.registerDeclarativeMethods()
         registerSharedLibs(context)
         prepareEnv(context)
         registerMockMethod(context)
@@ -58,6 +64,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
     }
 
     def protected runContext(PipelineRunContext context) {
+        context.registerDeclarativeMethods()
         registerSharedLibs(context)
         prepareEnv(context)
         registerMockMethod(context)
@@ -248,6 +255,192 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
         def method(String name, List<Class> args = [], Closure closure) {
             mockMethods.put(method(
                     name, args.toArray(new Class[args?.size()])), closure)
+        }
+        /**
+         * Declarative pipeline methods not in the base
+         *
+         * See here:
+         * https://www.cloudbees.com/sites/default/files/declarative-pipeline-refcard.pdf
+         */
+        void registerDeclarativeMethods() {
+
+            // For execution of the pipeline
+            internalHelper.registerAllowedMethod('execute', [], { })
+            internalHelper.registerAllowedMethod('pipeline', [Closure.class], null)
+            internalHelper.registerAllowedMethod('options', [Closure.class], null)
+
+            // Handle endvironment section adding the env vars
+            internalHelper.registerAllowedMethod('environment', [Closure.class], { Closure c ->
+
+                def envBefore = [env: binding.getVariable('env')]
+                println "Env section - original env vars: ${envBefore.toString()}"
+                c.resolveStrategy = Closure.DELEGATE_FIRST
+                c.delegate = envBefore
+                c()
+
+                def envNew = envBefore.env
+                envBefore.each { k, v ->
+                    if (k != 'env') {
+                        envNew["$k"] = v
+                    }
+
+                }
+                println "Env section - env vars set to: ${envNew.toString()}"
+                binding.setVariable('env', envNew)
+            })
+
+            // Handle parameters section adding the default params
+            internalHelper.registerAllowedMethod('parameters', [Closure.class], { Closure parametersBody ->
+
+                // Register the contained elements
+                internalHelper.registerAllowedMethod('string', [Map.class], { Map stringParam ->
+
+                    // Add the param default for a string
+                    addParam(stringParam.name, stringParam.defaultValue)
+
+                })
+                internalHelper.registerAllowedMethod('booleanParam', [Map.class], { Map boolParam ->
+                    // Add the param default for a string
+                    addParam(boolParam.name, boolParam.defaultValue.toString().toBoolean())
+                })
+
+                // Run the body closure
+                def paramsResult = parametersBody()
+
+                // Unregister the contained elements
+                internalHelper.unRegisterAllowedMethod('string', [Map.class])
+                internalHelper.unRegisterAllowedMethod('booleanParam', [Map.class])
+
+                // Result to higher level. Is this needed?
+                return paramsResult
+            })
+
+            // If any of these need special handling, it needs to be implemented here or in the tests with a closure instead of null
+            internalHelper.registerAllowedMethod('triggers', [Closure.class], null)
+            internalHelper.registerAllowedMethod('pollSCM', [String.class], null)
+            internalHelper.registerAllowedMethod('cron', [String.class], null)
+
+            internalHelper.registerAllowedMethod('agent', [Closure.class], null)
+            internalHelper.registerAllowedMethod('label', [String.class], null)
+            internalHelper.registerAllowedMethod('docker', [String.class], null)
+            internalHelper.registerAllowedMethod('image', [String.class], null)
+            internalHelper.registerAllowedMethod('args', [String.class], null)
+            internalHelper.registerAllowedMethod('dockerfile', [Closure.class], null)
+            internalHelper.registerAllowedMethod('dockerfile', [Boolean.class], null)
+
+            internalHelper.registerAllowedMethod('timestamps', [], null)
+            internalHelper.registerAllowedMethod('tools', [Closure.class], null)
+            internalHelper.registerAllowedMethod('stages', [Closure.class], null)
+            internalHelper.registerAllowedMethod('validateDeclarativePipeline', [String.class], null)
+
+            internalHelper.registerAllowedMethod('parallel', [Closure.class], null)
+
+            /**
+             * Handling of a stage skipping execution in tests due to failure, abort, when
+             */
+            internalHelper.registerAllowedMethod('stage', [String.class, Closure.class], { String stgName, Closure body ->
+
+                // Returned from the stage
+                def stageResult
+
+                // Handling of the when. Only supporting expression right now
+                internalHelper.registerAllowedMethod('when', [Closure.class], { Closure whenBody ->
+
+                    // Handle a when expression
+                    internalHelper.registerAllowedMethod('expression', [Closure.class], { Closure expressionBody ->
+
+                        // Run the expression and return any result
+                        def expressionResult = expressionBody()
+                        if (expressionResult == false) {
+                            throw new WhenExitException("Stage '${stgName}' skipped due to when expression returned false")
+                        }
+                        return expressionResult
+                    })
+
+                    // TODO - handle other when clauses in the when
+                    // branch : 'when { branch 'master' }'
+                    // environment : 'when { environment name: 'DEPLOY_TO', value: 'production' }'
+
+                    // Run the when body and return any result
+                    return whenBody()
+                })
+
+                // Stage is not executed if build fails or aborts
+                def status = binding.getVariable('currentBuild').result
+                switch (status) {
+                    case 'FAILURE':
+                    case 'ABORTED':
+                        println "Stage '${stgName}' skipped - job status: '${status}'"
+                        break
+                    default:
+
+                        // Run the stage body. A when statement may exit with an exception
+                        try {
+                            stageResult = body()
+                        }
+                        catch (WhenExitException we) {
+                            // The when exited with an exception due to returning false. Swallow it.
+                            println we.getMessage()
+                        }
+                        catch (Exception e) {
+                            // Some sort of error in the pipeline
+                            throw e
+                        }
+
+                }
+
+                // Unregister
+                internalHelper.unRegisterAllowedMethod('when', [Closure.class])
+                internalHelper.unRegisterAllowedMethod('expression', [Closure.class])
+
+                return stageResult
+            })
+
+            internalHelper.registerAllowedMethod('steps', [Closure.class], null)
+            internalHelper.registerAllowedMethod('script', [Closure.class], null)
+
+            internalHelper.registerAllowedMethod('when', [Closure.class], null)
+            internalHelper.registerAllowedMethod('expression', [Closure.class], null)
+            internalHelper.registerAllowedMethod('post', [Closure.class], null)
+
+            /**
+             * Handling the post sections
+             */
+            def postResultEmulator = { String section, Closure c ->
+
+                def currentBuild = binding.getVariable('currentBuild')
+
+                switch (section) {
+                    case 'always':
+                    case 'changed': // How to handle changed? It may happen so just run it..
+                        return c.call()
+                        break
+                    case 'success':
+                        if (currentBuild.result == 'SUCCESS') { return c.call() }
+                        else { println "post ${section} skipped as not SUCCESS"; return null }
+                        break
+                    case 'unstable':
+                        if (currentBuild.result == 'UNSTABLE') { return c.call() }
+                        else { println "post ${section} skipped as SUCCESS"; return null }
+                        break
+                    case 'failure':
+                        if (currentBuild.result == 'FAILURE') { return c.call() }
+                        else { println "post ${section} skipped as not FAILURE"; return null }
+                        break
+                    case 'aborted':
+                        if (currentBuild.result == 'ABORTED') { return c.call() }
+                        else { println "post ${section} skipped as not ABORTED"; return null }
+                        break
+                    default:
+                        assert false, "post section ${section} is not recognised. Check pipeline syntax."
+                        break
+                }
+            }
+            internalHelper.registerAllowedMethod('always', [Closure.class], postResultEmulator.curry('always'))
+            internalHelper.registerAllowedMethod('changed', [Closure.class], postResultEmulator.curry('changed'))
+            internalHelper.registerAllowedMethod('success', [Closure.class], postResultEmulator.curry('success'))
+            internalHelper.registerAllowedMethod('unstable', [Closure.class], postResultEmulator.curry('unstable'))
+            internalHelper.registerAllowedMethod('failure', [Closure.class], postResultEmulator.curry('failure'))
         }
     }
 }
