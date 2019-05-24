@@ -100,31 +100,43 @@ class TestPipelineTestRunner extends Specification {
 
     def "verify sh mocking with script handler"() {
         when:
-        def isMockScriptCalled = false
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
-            scriptHandlers['test-sh']  = [
-                            regexp: /echo 123/,
-                            handler: { scriptParams -> return isMockScriptCalled = true }
-                    ]
-        }
-
+            def isMockScriptCalled = false
+            def stepScript = runner.load {
+                sharedLibrary("test-lib", 'src/test/resources/')
+                script getClass().getResource('/dummyScript.groovy').toURI().toString()
+                scriptHandlers['test-sh']  = [
+                                regexp: /echo 123/,
+                                handler: { scriptParams -> return isMockScriptCalled = true }
+                        ]
+            }
         then:
-        stepScript.varScript() == 'var script'
-        isMockScriptCalled
+            stepScript.varScript() == 'var script'
+            isMockScriptCalled
     }
 
     def "verify library load with the script loader"() {
         when:
-        runner.preferClassLoading = false
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
-        }
-
+            runner.preferClassLoading = false
+            def stepScript = runner.load {
+                sharedLibrary("test-lib", 'src/test/resources/')
+                script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            }
         then:
-        stepScript.varScript() == 'var script'
-        stepScript() == 'testresult'
+            stepScript.varScript() == 'var script'
+            stepScript() == 'testresult'
+    }
+
+    def "should call a mocked declarative pipeline"() {
+        when:
+            def testingEcho = []
+            runner.preferClassLoading = false
+            def scriptStep = runner.load {
+                script getClass().getResource('/vars/declarativePipelineExample.groovy').toURI().toString()
+                method "echo", [String.class], { str -> testingEcho.add(str) }
+            }
+        then:
+            scriptStep()
+            testingEcho[0] == "Hello world!"
+            testingEcho[1] == "Oh, Happy days!"
     }
 }
