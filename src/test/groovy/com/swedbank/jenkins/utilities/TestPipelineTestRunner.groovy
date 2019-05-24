@@ -129,9 +129,8 @@ class TestPipelineTestRunner extends Specification {
     def "should call a mocked declarative pipeline"() {
         when:
             def testingEcho = []
-            runner.preferClassLoading = false
             def scriptStep = runner.load {
-                script getClass().getResource('/vars/declarativePipelineExample.groovy').toURI().toString()
+                script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
                 method "echo", [String.class], { str -> testingEcho.add(str) }
             }
         then:
