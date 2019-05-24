@@ -268,6 +268,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
             internalHelper.registerAllowedMethod('execute', [], { })
             internalHelper.registerAllowedMethod('pipeline', [Closure.class], null)
             internalHelper.registerAllowedMethod('options', [Closure.class], null)
+            internalHelper.registerAllowedMethod('timeout', [Map.class], { str -> })
 
             // Handle endvironment section adding the env vars
             internalHelper.registerAllowedMethod('environment', [Closure.class], { Closure c ->
@@ -412,6 +413,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
 
                 switch (section) {
                     case 'always':
+                    case 'cleanup':
                     case 'changed': // How to handle changed? It may happen so just run it..
                         return c.call()
                         break
@@ -431,6 +433,18 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                         if (currentBuild.result == 'ABORTED') { return c.call() }
                         else { println "post ${section} skipped as not ABORTED"; return null }
                         break
+                    case 'regression':
+                        if (currentBuild.result == 'REGRESSION') { return c.call() }
+                        else { println "post ${section} skipped as not FAILURE"; return null }
+                        break
+                    case 'unsuccessful':
+                        if (currentBuild.result == 'UNSUCCESSFUL') { return c.call() }
+                        else { println "post ${section} skipped as not SUCCESS"; return null }
+                        break
+                    case 'fixed':
+                        if (currentBuild.result == 'FIXED') { return c.call() }
+                        else { println "post ${section} skipped as not SUCCESS"; return null }
+                        break
                     default:
                         assert false, "post section ${section} is not recognised. Check pipeline syntax."
                         break
@@ -441,6 +455,11 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
             internalHelper.registerAllowedMethod('success', [Closure.class], postResultEmulator.curry('success'))
             internalHelper.registerAllowedMethod('unstable', [Closure.class], postResultEmulator.curry('unstable'))
             internalHelper.registerAllowedMethod('failure', [Closure.class], postResultEmulator.curry('failure'))
+            internalHelper.registerAllowedMethod('aborted', [Closure.class], postResultEmulator.curry('aborted'))
+            internalHelper.registerAllowedMethod('regression', [Closure.class], postResultEmulator.curry('regression'))
+            internalHelper.registerAllowedMethod('unsuccessful', [Closure.class], postResultEmulator.curry('unsuccessful'))
+            internalHelper.registerAllowedMethod('fixed', [Closure.class], postResultEmulator.curry('fixed'))
+            internalHelper.registerAllowedMethod('cleanup', [Closure.class], postResultEmulator.curry('cleanup'))
         }
     }
 }
