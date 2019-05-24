@@ -8,7 +8,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath "tools.swedbank.gradle.plugin:ReleasePlugin:1.8.0"
+        classpath "tools.swedbank.gradle.plugin:ReleasePlugin:2.0.0"
         classpath "tools.swedbank.gradle.plugin:qualityreport:v2.0.0"
     }
 }
