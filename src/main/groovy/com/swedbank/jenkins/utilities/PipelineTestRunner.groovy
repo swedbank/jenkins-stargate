@@ -269,6 +269,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
             internalHelper.registerAllowedMethod('pipeline', [Closure.class], null)
             internalHelper.registerAllowedMethod('options', [Closure.class], null)
             internalHelper.registerAllowedMethod('timeout', [Map.class], { str -> })
+            internalHelper.registerAllowedMethod('skipDefaultCheckout', [boolean.class], { booleanValue -> })
 
             // Handle endvironment section adding the env vars
             internalHelper.registerAllowedMethod('environment', [Closure.class], { Closure c ->
