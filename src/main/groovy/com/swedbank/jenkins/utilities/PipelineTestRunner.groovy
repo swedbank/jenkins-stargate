@@ -13,6 +13,11 @@ import static com.lesfurets.jenkins.unit.MethodSignature.method
 import static com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration.library
 
 class PipelineTestRunner extends BasePipelineClassLoaderTest {
+
+    static enum CredentialsType {
+        SECRET_TEXT, SECRET_FILE, USERNAME_PASSWORD, PRIVATE_KEY
+    }
+
     /**
      * This flags indicates whether the helper should try to load script under test as the compiled
      * class or as the script source file.
@@ -213,6 +218,8 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                 (method('unstash', Map.class))                        : { map -> }
         ]
 
+        Map credentialsTypes = [:]
+
         Boolean printStack = true
         def sharedLibs = new ArrayList<LibraryConfiguration>()
 
@@ -256,6 +263,17 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
             mockMethods.put(method(
                     name, args.toArray(new Class[args?.size()])), closure)
         }
+
+        /**
+         * Registers credentials for the environment block in the declarative pipeline
+         * @param id credentials id
+         * @param credType credentials type
+         * @param Optional. Custom handler for the credentials block. Should return the variable value.
+         *  Accepts the variable name that will hold the value.
+         */
+        def registerCredentials(String id, CredentialsType credType, Closure credHandler=null) {
+            this.credentialsTypes[id] = [type: credType, handler: credHandler]
+        }
         /**
          * Declarative pipeline methods not in the base
          *
@@ -270,8 +288,44 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
             internalHelper.registerAllowedMethod('options', [Closure.class], null)
             internalHelper.registerAllowedMethod('timeout', [Map.class], { str -> })
             internalHelper.registerAllowedMethod('skipDefaultCheckout', [boolean.class], { booleanValue -> })
-
-            // Handle endvironment section adding the env vars
+            internalHelper.registerAllowedMethod('credentials', [String.class], { credId ->
+                Map defaultCredData = [
+                    type: CredentialsType.USERNAME_PASSWORD,
+                    handler: null
+                ]
+                Map credData = this.credentialsTypes.get(credId, defaultCredData)
+                CredentialsType credType = credData.get('type', defaultCredData.type)
+                Closure credHandler = credData.get('handler')
+                if (credHandler != null) {
+                    return credHandler
+                } else {
+                    return { varName ->
+                        String retValue = credId
+                        switch (credType) {
+                            case CredentialsType.SECRET_TEXT:
+                                retValue += '_secret_text'
+                                break
+                            case CredentialsType.SECRET_FILE:
+                                retValue += '_secret_file'
+                                break
+                            case CredentialsType.USERNAME_PASSWORD:
+                                env["${varName}_USR"] = "${retValue}_user"
+                                env["${varName}_PSW"] = "${retValue}_password"
+                                retValue = "${retValue}_user:${retValue}_password"
+                                break
+                            case CredentialsType.PRIVATE_KEY:
+                                env["${varName}_USR"] = "${retValue}_user"
+                                env["${varName}_PSW"] = "${retValue}_password"
+                                retValue += '_secret_file'
+                                break
+                            default:
+                                break
+                        }
+                        return retValue
+                    }
+                }
+            })
+            // Handle environment section adding the env vars
             internalHelper.registerAllowedMethod('environment', [Closure.class], { Closure c ->
 
                 def envBefore = [env: binding.getVariable('env')]
@@ -283,9 +337,14 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                 def envNew = envBefore.env
                 envBefore.each { k, v ->
                     if (k != 'env') {
-                        envNew["$k"] = v
+                        if (v instanceof Closure) {
+                            // call handler
+                            envNew["$k"] = v(k)
+                        } else {
+                            // just set user defined env variable
+                            envNew["$k"] = v
+                        }
                     }
-
                 }
                 println "Env section - env vars set to: ${envNew.toString()}"
                 binding.setVariable('env', envNew)

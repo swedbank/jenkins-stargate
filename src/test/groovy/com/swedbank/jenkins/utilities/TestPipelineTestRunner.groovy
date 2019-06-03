@@ -138,4 +138,47 @@ class TestPipelineTestRunner extends Specification {
             testingEcho[0] == "Hello world!"
             testingEcho[1] == "Oh, Happy days!"
     }
+
+    def "should mock declarative environment by default"() {
+        given:
+        def testingEcho = []
+        def scriptStep = runner.load {
+            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
+            method "echo", [String.class], { str -> testingEcho.add(str) }
+        }
+        when:
+        scriptStep()
+        then:
+            scriptStep.env.TEST_ENV_VAR == 'TEST1'
+            scriptStep.env.TEST_CRED_ENV_VAR == 'MY_CREDS_user:MY_CREDS_password'
+            scriptStep.env.TEST_CRED_ENV_VAR_USR == 'MY_CREDS_user'
+            scriptStep.env.TEST_CRED_ENV_VAR_PSW == 'MY_CREDS_password'
+            testingEcho[2] == "${scriptStep.env.TEST_ENV_VAR}"
+    }
+
+    def "should allow to define custom credentials"() {
+        given:
+        def scriptStep = runner.load {
+            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
+            registerCredentials("MY_CREDS", PipelineTestRunner.CredentialsType.SECRET_TEXT)
+        }
+        when:
+        scriptStep()
+        then:
+        scriptStep.env.TEST_CRED_ENV_VAR == 'MY_CREDS_secret_text'
+    }
+
+    def "should allow to define custom credentials with custom handler"() {
+        given:
+        def scriptStep = runner.load {
+            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
+            registerCredentials("MY_CREDS", PipelineTestRunner.CredentialsType.PRIVATE_KEY, {
+                varName -> return varName + "_custom_value"
+            })
+        }
+        when:
+        scriptStep()
+        then:
+        scriptStep.env.TEST_CRED_ENV_VAR == 'TEST_CRED_ENV_VAR_custom_value'
+    }
 }
