@@ -299,7 +299,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                 if (credHandler != null) {
                     return credHandler
                 } else {
-                    return { varName ->
+                    return { varName, binding ->
                         String retValue = credId
                         switch (credType) {
                             case CredentialsType.SECRET_TEXT:
@@ -309,13 +309,13 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                                 retValue += '_secret_file'
                                 break
                             case CredentialsType.USERNAME_PASSWORD:
-                                env["${varName}_USR"] = "${retValue}_user"
-                                env["${varName}_PSW"] = "${retValue}_password"
+                                binding.setProperty("${varName}_USR", "${retValue}_user")
+                                binding.setProperty("${varName}_PSW", "${retValue}_password")
                                 retValue = "${retValue}_user:${retValue}_password"
                                 break
                             case CredentialsType.PRIVATE_KEY:
-                                env["${varName}_USR"] = "${retValue}_user"
-                                env["${varName}_PSW"] = "${retValue}_password"
+                                binding.setProperty("${varName}_USR", "${retValue}_user")
+                                binding.setProperty("${varName}_PSW", "${retValue}_password")
                                 retValue += '_secret_file'
                                 break
                             default:
@@ -325,29 +325,29 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                     }
                 }
             })
-            // Handle environment section adding the env vars
             internalHelper.registerAllowedMethod('environment', [Closure.class], { Closure c ->
+                def envBefore = new Binding(binding.variables)
+                envBefore.metaClass.setProperty = { String name, Object value ->
+                    if (value instanceof Closure) {
+                        value = value(name, envBefore)
+                    }
+                    if (variables == null)
+                        variables = new LinkedHashMap();
+                    variables.put(name, value);
+                    if (!variables.containsKey('env')) {
+                        variables.put('env', [:]);
+                    }
+                    variables['env'][name] = value
+                }
+                envBefore.metaClass.setVariable = envBefore.&setProperty
 
-                def envBefore = [env: binding.getVariable('env')]
-                println "Env section - original env vars: ${envBefore.toString()}"
                 c.resolveStrategy = Closure.DELEGATE_FIRST
                 c.delegate = envBefore
                 c()
 
-                def envNew = envBefore.env
-                envBefore.each { k, v ->
-                    if (k != 'env') {
-                        if (v instanceof Closure) {
-                            // call handler
-                            envNew["$k"] = v(k)
-                        } else {
-                            // just set user defined env variable
-                            envNew["$k"] = v
-                        }
-                    }
+                envBefore.variables.each { name, value ->
+                    binding.setVariable(name, value)
                 }
-                println "Env section - env vars set to: ${envNew.toString()}"
-                binding.setVariable('env', envNew)
             })
 
             // Handle parameters section adding the default params
