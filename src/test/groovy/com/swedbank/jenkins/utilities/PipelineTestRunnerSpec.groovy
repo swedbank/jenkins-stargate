@@ -87,7 +87,7 @@ class PipelineTestRunnerSpec extends Specification {
         stepScript.scm == "mock for scm"
     }
 
-    def "verify job paramter mock"() {
+    def "verify job parameter mock"() {
         when:
         def stepScript = runner.load {
             script getClass().getResource('/dummyScript.groovy').toURI().toString()
@@ -133,9 +133,26 @@ class PipelineTestRunnerSpec extends Specification {
             script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
             method "echo", [String.class], { str -> testingEcho.add(str) }
         }
-        then:
         scriptStep()
+        then:
         testingEcho[0] == "Hello world!"
         testingEcho[1] == "Oh, Happy days!"
+    }
+
+    def "should call a mocked declarative pipeline with unsuccessful build result"() {
+        when:
+        def currentResult = runner.binding.getVariable('currentBuild')
+        def testingEcho = []
+        def scriptStep = runner.load {
+            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
+            method "echo", [String.class], { str ->
+                testingEcho.add(str)
+                currentResult.result = 'FAILURE'
+            }
+        }
+        scriptStep()
+        then:
+        testingEcho[0] == 'Hello world!'
+        testingEcho[1] == 'Well, not so happy days...'
     }
 }

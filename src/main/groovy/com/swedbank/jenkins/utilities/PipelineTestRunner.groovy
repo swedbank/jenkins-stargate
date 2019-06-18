@@ -498,7 +498,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                         else { println "post ${section} skipped as not FAILURE"; return null }
                         break
                     case 'unsuccessful':
-                        if (currentBuild.result == 'UNSUCCESSFUL') { return c.call() }
+                        if (currentBuild.result != 'SUCCESS') { return c.call() }
                         else { println "post ${section} skipped as not SUCCESS"; return null }
                         break
                     case 'fixed':

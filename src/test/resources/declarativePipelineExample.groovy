@@ -26,6 +26,10 @@ def call() {
                 echo 'Oh, Happy days!'
                 echo "${env.TEST_ENV_VAR}"
             }
+
+            failure {
+                echo 'Well, not so happy days...'
+            }
         }
     }
 }
