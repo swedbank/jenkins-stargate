@@ -194,7 +194,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                     return Files.contentOf(new File(file), Charset.forName('UTF-8'))
                 },
                 (method('httpRequest', LinkedHashMap.class))          : { requestParams ->
-                    new Expando(status: 200, content: 'Mocked http request DONE')
+                    [status: 200, content: 'Mocked http request DONE']
                 },
                 (method('usernamePassword', Map.class))               : { creds -> return creds },
 
