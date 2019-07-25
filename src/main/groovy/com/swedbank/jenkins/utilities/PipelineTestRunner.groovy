@@ -186,14 +186,11 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                     def res = scriptHandlers.find {
                         scriptStr ==~ it.value.regexp }?.value?.handler([script: scriptStr])
                     return res == null ? 0 : res
-                },
-
-                (method('emailext', Map.class))             : { mailParams -> },
+                }, (method('emailext', Map)) : { mailParams -> },
                 (method('findFiles', Map.class))                      : { fileParams -> return [length:1] },
                 (method('readFile', String.class))                    : { file ->
                     return Files.contentOf(new File(file), Charset.forName('UTF-8'))
-                },
-                (method('httpRequest', Map.class))          : { requestParams ->
+                }, (method('httpRequest', Map)) : { requestParams ->
                     [status: 200, content: 'Mocked http request DONE']
                 },
                 (method('usernamePassword', Map.class))               : { creds -> return creds },
