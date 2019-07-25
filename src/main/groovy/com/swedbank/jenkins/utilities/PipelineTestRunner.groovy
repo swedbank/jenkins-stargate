@@ -188,12 +188,12 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
                     return res == null ? 0 : res
                 },
 
-                (method('emailext', LinkedHashMap.class))             : { mailParams -> },
+                (method('emailext', Map.class))             : { mailParams -> },
                 (method('findFiles', Map.class))                      : { fileParams -> return [length:1] },
                 (method('readFile', String.class))                    : { file ->
                     return Files.contentOf(new File(file), Charset.forName('UTF-8'))
                 },
-                (method('httpRequest', LinkedHashMap.class))          : { requestParams ->
+                (method('httpRequest', Map.class))          : { requestParams ->
                     [status: 200, content: 'Mocked http request DONE']
                 },
                 (method('usernamePassword', Map.class))               : { creds -> return creds },
