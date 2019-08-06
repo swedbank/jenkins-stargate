@@ -55,7 +55,7 @@ final class PipelineRunContext {
 
     protected Binding binding
     protected PipelineClassLoaderTestHelper helper
-    protected String scriptPath
+    String scriptPath
 
     protected  PipelineRunContext(Binding binding, PipelineClassLoaderTestHelper helper) {
         this.binding = binding

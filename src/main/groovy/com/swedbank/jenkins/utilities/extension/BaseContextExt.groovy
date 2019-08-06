@@ -18,6 +18,6 @@ abstract class BaseContextExt {
     def callExt(PipelineRunContext context, Closure cl) {
         cl.resolveStrategy = Closure.DELEGATE_FIRST
         cl.delegate = this
-        cl()
+        cl(context)
     }
 }

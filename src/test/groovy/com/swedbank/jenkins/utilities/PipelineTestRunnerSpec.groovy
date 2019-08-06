@@ -1,5 +1,6 @@
 package com.swedbank.jenkins.utilities
 
+import com.swedbank.jenkins.utilities.extension.BaseContextExt
 import spock.lang.Specification
 
 class PipelineTestRunnerSpec extends Specification {
@@ -192,5 +193,38 @@ class PipelineTestRunnerSpec extends Specification {
         then:
         testingEcho[0] == 'Hello world!'
         testingEcho[1] == 'Well, not so happy days...'
+    }
+
+    def "should allow to use custom extension"() {
+        given:
+        boolean extWasCalled = false
+
+        when:
+        def stepScript = runner.load {
+            addExtension(new BaseContextExt() {
+                @Override
+                String getExtName() {
+                    return "myExt"
+                }
+
+                @Override
+                def setupExt(PipelineRunContext cnt) {
+                    cnt.property('testProp', 'testValue')
+                }
+
+                def doSomething() {
+                    extWasCalled = true
+                }
+            })
+            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            // call extension methods
+            myExt {
+                doSomething()
+            }
+        }
+
+        then:
+        assert stepScript.testProp == "testValue"
+        assert extWasCalled
     }
 }
