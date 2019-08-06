@@ -1,4 +1,4 @@
-package com.swedbank.jenkins.utilities
+package com.swedbank.jenkins.utilities.utils
 
 import com.lesfurets.jenkins.unit.InterceptingGCL
 import com.lesfurets.jenkins.unit.PipelineTestHelper
@@ -6,7 +6,9 @@ import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.runtime.InvokerHelper
 
-class PipelineTestHelperClassLoader extends PipelineTestHelper {
+import static com.lesfurets.jenkins.unit.MethodSignature.method
+
+class PipelineClassLoaderTestHelper extends PipelineTestHelper {
 
     Object runScript(String scriptName, Binding binding) {
         return runScript(scriptName, binding, true)
@@ -45,5 +47,9 @@ class PipelineTestHelperClassLoader extends PipelineTestHelper {
         script.metaClass.static.invokeMethod = getMethodInterceptor()
         script.metaClass.methodMissing = getMethodMissingInterceptor()
         return script
+    }
+
+    def unRegisterAllowedMethod(String name, List<Class> args) {
+        allowedMethodCallbacks.remove(method(name, args.toArray(new Class[args.size()])))
     }
 }

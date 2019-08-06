@@ -41,7 +41,7 @@ class PipelineTestRunnerSpec extends Specification {
         stepScript.env.containsKey('BUILD_TIMESTAMP')
     }
 
-    def "verify set custom env variables"() {
+    def "verify set custom env variables (old style)"() {
         when:
         def stepScript = runner.load {
             script getClass().getResource('/dummyScript.groovy').toURI().toString()
@@ -52,6 +52,23 @@ class PipelineTestRunnerSpec extends Specification {
         stepScript.env != null
         stepScript.env.containsKey('BUILD_TIMESTAMP')
         stepScript.env.MYENV == 'MY_VALUE'
+    }
+
+    def "verify set custom env variables (new style)"() {
+        when:
+        def stepScript = runner.load {
+            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            env NEWENV1: 'MY_VALUE1',
+                NEWENV2: 'MY_VALUE2'
+            env 'NAME', "VALUE"
+        }
+
+        then:
+        stepScript.env != null
+        stepScript.env.containsKey('BUILD_TIMESTAMP')
+        stepScript.env.NEWENV1 == 'MY_VALUE1'
+        stepScript.env.NEWENV2 == 'MY_VALUE2'
+        stepScript.env.NAME == 'VALUE'
     }
 
     def "verify library load from the source"() {
@@ -98,16 +115,37 @@ class PipelineTestRunnerSpec extends Specification {
         stepScript.params['user_param'] == "JOB_PARAMETER"
     }
 
-    def "verify sh mocking with script handler"() {
+    def "verify sh mocking with script handler (deprecated style)"() {
+        when:
+        def isMockScriptCalled = false
+        def stepScript = runner.load {
+            sharedLibrary("test-lib", 'src/test/resources/')
+            scriptHandlers['test-sh'] = [
+                    regexp : /echo 123/,
+                    handler: { scriptParams -> return isMockScriptCalled = true }
+            ]
+            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+
+        }
+        then:
+        stepScript.varScript() == 'var script'
+        isMockScriptCalled
+    }
+
+    def "verify sh mocking with script handler (new style)"() {
         when:
         def isMockScriptCalled = false
         def stepScript = runner.load {
             sharedLibrary("test-lib", 'src/test/resources/')
             script getClass().getResource('/dummyScript.groovy').toURI().toString()
-            scriptHandlers['test-sh'] = [
-                    regexp : /echo 123/,
-                    handler: { scriptParams -> return isMockScriptCalled = true }
-            ]
+
+            shell {
+                handler 'test-sh', [
+                        regexp : /echo 123/,
+                        handler: { scriptParams -> return isMockScriptCalled = true }
+                ]
+            }
+
         }
         then:
         stepScript.varScript() == 'var script'

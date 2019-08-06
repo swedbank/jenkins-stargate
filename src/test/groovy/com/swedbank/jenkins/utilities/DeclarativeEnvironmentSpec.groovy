@@ -1,5 +1,6 @@
 package com.swedbank.jenkins.utilities
 
+import com.swedbank.jenkins.utilities.extension.DeclarativePipelineExt
 import spock.lang.Specification
 
 class DeclarativeEnvironmentSpec extends Specification {
@@ -33,7 +34,10 @@ class DeclarativeEnvironmentSpec extends Specification {
     def "should allow to define custom credentials"() {
         given:
         def scriptStep = runner.load baseClosure << {
-            registerCredentials("MY_CREDS", PipelineTestRunner.CredentialsType.SECRET_TEXT)
+            declarative {
+                registerCredentials("MY_CREDS", DeclarativePipelineExt.CredentialsType.SECRET_TEXT)
+            }
+
         }
         when:
         scriptStep()
@@ -44,9 +48,11 @@ class DeclarativeEnvironmentSpec extends Specification {
     def "should allow to define custom credentials with custom handler"() {
         given:
         def scriptStep = runner.load baseClosure << {
-            registerCredentials("MY_CREDS", PipelineTestRunner.CredentialsType.PRIVATE_KEY, {
-                varName, binding -> return varName + "_custom_value"
-            })
+            declarative {
+                registerCredentials("MY_CREDS", DeclarativePipelineExt.CredentialsType.PRIVATE_KEY, {
+                    varName -> env(varName, varName + "_custom_value")
+                })
+            }
         }
         when:
         scriptStep()
