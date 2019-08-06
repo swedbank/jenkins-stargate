@@ -33,6 +33,8 @@ final class PipelineRunContext {
         def setupDefaultEnv() {
             runContext.env([
                     "BUILD_TIMESTAMP": new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())])
+            runContext.property('scm', [:])
+            runContext.property('params', [:])
             return this
         }
 
@@ -94,7 +96,7 @@ final class PipelineRunContext {
     /**
      * Set a groovy script name. Required property
      */
-    String script(name) {
+    String script(String name) {
         this.scriptPath = name
     }
 
@@ -156,23 +158,28 @@ final class PipelineRunContext {
 
     def method(MethodSignature signature, Closure cl) {
         if (signature != null) {
+            log.info("Method mock -> ${signature}")
             helper.registerAllowedMethod(signature, cl ?: { -> })
         }
     }
 
     // Backward compatibility with the old style calling of the library
     def propertyMissing(String name, value) {
-       if (name == 'env') {
-           return this.env(value)
-       }
-
+        if (name == 'env') {
+            return this.env(value)
+        } else if (name == 'scriptHandlers') {
+            log.info("Deprecated! Adding new script handler. Use shell { handler 'name' params } instead")
+            return this.shell__object.handlers(value)
+        }
+        throw new MissingPropertyException(name)
     }
     def propertyMissing(String name) {
         if (['env'].contains(name)) {
             return [:]
         } else if (name == 'scriptHandlers') {
-            log.info("Deprecated! Adding new script handler. Use shellExt { handler 'name' params } instead")
+            log.info("Deprecated! Adding new script handler. Use shell { handler 'name' params } instead")
             return this.shell__object.scriptHandlers
         }
+        throw new MissingPropertyException(name)
     }
 }

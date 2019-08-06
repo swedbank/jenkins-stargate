@@ -69,4 +69,10 @@ class ShellExt extends BaseContextExt {
         scriptHandlers[name] = handlerParams
     }
 
+    def handlers(Map<String, Map> handlers) {
+        handlers.each { String key, Map value ->
+            handler(key, value)
+        }
+    }
+
 }

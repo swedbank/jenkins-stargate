@@ -5,6 +5,7 @@ import spock.lang.Specification
 
 class PipelineTestRunnerSpec extends Specification {
     PipelineTestRunner runner
+    String scriptUnderTest = getClass().getResource('/dummyScript.groovy').toURI().toString()
 
     def setup() {
         runner = new PipelineTestRunner()
@@ -13,7 +14,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify script loading"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
         }
 
         then:
@@ -23,7 +24,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify simple script execute"() {
         when:
         runner.run {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
         }
 
         then:
@@ -34,7 +35,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify default env variables"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
         }
 
         then:
@@ -45,7 +46,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify set custom env variables (old style)"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             env += [MYENV: 'MY_VALUE']
         }
 
@@ -58,7 +59,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify set custom env variables (new style)"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             env NEWENV1: 'MY_VALUE1',
                 NEWENV2: 'MY_VALUE2'
             env 'NAME', "VALUE"
@@ -86,7 +87,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify method mock"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             method "mockedMethod", [String.class], { str -> return "Hello, ${str}" }
         }
 
@@ -97,7 +98,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify property mock"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             property "scm", "mock for scm"
         }
 
@@ -108,7 +109,7 @@ class PipelineTestRunnerSpec extends Specification {
     def "verify job parameter mock"() {
         when:
         def stepScript = runner.load {
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             param "user_param", "JOB_PARAMETER"
         }
 
@@ -125,7 +126,13 @@ class PipelineTestRunnerSpec extends Specification {
                     regexp : /echo 123/,
                     handler: { scriptParams -> return isMockScriptCalled = true }
             ]
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            scriptHandlers += [
+                anotherMock: [
+                    regexp : /echo 321/,
+                    handler: { scriptParams -> return isMockScriptCalled = false }
+                ]
+            ]
+            script scriptUnderTest
 
         }
         then:
@@ -138,7 +145,7 @@ class PipelineTestRunnerSpec extends Specification {
         def isMockScriptCalled = false
         def stepScript = runner.load {
             sharedLibrary("test-lib", 'src/test/resources/')
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
 
             shell {
                 handler 'test-sh', [
@@ -158,7 +165,7 @@ class PipelineTestRunnerSpec extends Specification {
         runner.preferClassLoading = false
         def stepScript = runner.load {
             sharedLibrary("test-lib", 'src/test/resources/')
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
         }
         then:
         stepScript.varScript() == 'var script'
@@ -216,7 +223,7 @@ class PipelineTestRunnerSpec extends Specification {
                     extWasCalled = true
                 }
             })
-            script getClass().getResource('/dummyScript.groovy').toURI().toString()
+            script scriptUnderTest
             // call extension methods
             myExt {
                 doSomething()
