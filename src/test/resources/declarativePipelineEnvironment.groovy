@@ -4,6 +4,11 @@ def call() {
             label 'dubnium-strict-net'
         }
 
+        parameters {
+            string(name: 'testParameter', defaultValue: 'test')
+            booleanParam(name: 'testBoolParameter', defaultValue: true)
+        }
+
         environment {
             TEST_ENV_VAR = "TEST1"
             TEST_CRED_ENV_VAR = credentials("MY_CREDS")
@@ -13,9 +18,25 @@ def call() {
             TEST_CRED_MOCKED4 = "${env.BUILD_TIMESTAMP}"
         }
 
+        stages {
+            stage('dummy stage') {
+                steps {
+
+                }
+            }
+        }
+
         post {
             success {
                 echo "${env.TEST_ENV_VAR}"
+            }
+
+            aborted {
+                echo 'Aborted'
+            }
+
+            unsuccessful {
+                echo 'Unsuccessful'
             }
         }
     }

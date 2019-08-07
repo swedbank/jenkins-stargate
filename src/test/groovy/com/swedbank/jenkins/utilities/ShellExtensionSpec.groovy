@@ -4,20 +4,26 @@ import com.swedbank.jenkins.utilities.extension.ShellExt
 import com.swedbank.jenkins.utilities.utils.PipelineClassLoaderTestHelper
 import spock.lang.Specification
 
+/**
+ * Shell extension specific unit tests
+ */
 class ShellExtensionSpec extends Specification {
 
     def "should be able to call extension and set handler"() {
         given:
+        String handlerName = 'test1'
+        Map testMap = [k1: 'v1']
+
         PipelineRunContext context = new PipelineRunContext(new Binding(), new PipelineClassLoaderTestHelper())
         ShellExt shellExt = new ShellExt()
 
         when:
         shellExt.callExt(context) {
-            handler 'test1', [k1:'v1']
+            handler handlerName, testMap
         }
 
         then:
-        assert shellExt.scriptHandlers.containsKey('test1')
-        assert shellExt.scriptHandlers.test1 == [k1:'v1']
+        assert shellExt.scriptHandlers.containsKey(handlerName)
+        assert shellExt.scriptHandlers[handlerName] == testMap
     }
 }

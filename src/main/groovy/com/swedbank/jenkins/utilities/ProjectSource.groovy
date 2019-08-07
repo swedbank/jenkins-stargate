@@ -4,7 +4,7 @@ import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
 
 class ProjectSource implements SourceRetriever {
 
-    def sourceDir
+    File sourceDir
 
     ProjectSource() {
         ProjectSource('.')

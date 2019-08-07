@@ -21,7 +21,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
         internalHelper = helper
     }
 
-    def run(Closure cl) {
+    Object run(Closure cl) {
         PipelineRunContext cnt = new PipelineRunContext.Builder(this)
                 .setupDefaultEnv()
                 .setupDefaultExtensions()
@@ -36,8 +36,7 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
     /**
      * Loads the script but do not execute it.
      */
-    def load(Closure cl) {
-        log.info("Loading script")
+    Script load(Closure cl) {
         PipelineRunContext cnt = new PipelineRunContext.Builder(this)
                 .setupDefaultEnv()
                 .setupDefaultExtensions()
@@ -49,18 +48,15 @@ class PipelineTestRunner extends BasePipelineClassLoaderTest {
         return loadContext(cnt)
     }
 
-    def loadContext(PipelineRunContext context) {
+    Script loadContext(PipelineRunContext context) {
         return internalHelper.loadScript(context.scriptPath, context.binding, preferClassLoading)
     }
 
-    def runContext(PipelineRunContext context) {
-        internalHelper.runScript(context.scriptPath, context.binding, preferClassLoading)
+    Object runContext(PipelineRunContext context) {
+        Object res = internalHelper.runScript(context.scriptPath, context.binding, preferClassLoading)
         if (context.printStack) {
             printCallStack()
         }
-    }
-
-    def validateContent() {
-        //todo
+        return res
     }
 }

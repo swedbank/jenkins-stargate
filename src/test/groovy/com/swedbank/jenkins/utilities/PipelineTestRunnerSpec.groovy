@@ -3,9 +3,21 @@ package com.swedbank.jenkins.utilities
 import com.swedbank.jenkins.utilities.extension.BaseContextExt
 import spock.lang.Specification
 
+/**
+ * Test common usage scenarios
+ */
 class PipelineTestRunnerSpec extends Specification {
+    private static final String TEST_LIB_PATH = 'src/test/resources/'
+    private static final String TEST_LIB_NAME = 'test-lib'
+    private static final String BUILD_TIMESTAMP_ENV_NAME = 'BUILD_TIMESTAMP'
+    private static final String LIBRARY_SCRIPT_RESULT = 'var script'
+    private static final String PIPELINE_SCRIPT_RESULT = 'testresult'
+    private static final String ECHO_OUTPUT_1 = 'Hello world!'
+    public static final String ECHO_METHOD_NAME = 'echo'
+    private final String DECLARATIVE_SCRIPT_UNDER_TEST = getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
+    private final String SCRIPT_UNDER_TEST = getClass().getResource('/dummyScript.groovy').toURI()
+
     PipelineTestRunner runner
-    String scriptUnderTest = getClass().getResource('/dummyScript.groovy').toURI().toString()
 
     def setup() {
         runner = new PipelineTestRunner()
@@ -13,217 +25,236 @@ class PipelineTestRunnerSpec extends Specification {
 
     def "verify script loading"() {
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
         }
 
         then:
-        stepScript() == 'testresult'
+        assert stepScript() == PIPELINE_SCRIPT_RESULT
     }
 
     def "verify simple script execute"() {
         when:
         runner.run {
-            script scriptUnderTest
+            script SCRIPT_UNDER_TEST
         }
 
         then:
-        runner.helper.callStack.size() == 1
-        runner.helper.callStack[0].target.class.canonicalName == 'dummyScript'
+        assert runner.helper.callStack.size() == 1
+        assert runner.helper.callStack[0].target.class.canonicalName == 'dummyScript'
     }
 
     def "verify default env variables"() {
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
         }
 
         then:
-        stepScript.env != null
-        stepScript.env.containsKey('BUILD_TIMESTAMP')
+        assert stepScript.env != null
+        assert stepScript.env.containsKey(BUILD_TIMESTAMP_ENV_NAME)
     }
 
     def "verify set custom env variables (old style)"() {
+        given:
+        String myValue = 'myValue'
+
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
-            env += [MYENV: 'MY_VALUE']
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
+            env += [MYENV: myValue]
         }
 
         then:
-        stepScript.env != null
-        stepScript.env.containsKey('BUILD_TIMESTAMP')
-        stepScript.env.MYENV == 'MY_VALUE'
+        assert stepScript.env != null
+        assert stepScript.env.containsKey(BUILD_TIMESTAMP_ENV_NAME)
+        assert stepScript.env.MYENV == myValue
     }
 
     def "verify set custom env variables (new style)"() {
+        given:
+        String myValue1 = 'MY_VALUE1'
+        String myValue2 = 'MY_VALUE2'
+        String myValue3 = 'VALUE'
+
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
-            env NEWENV1: 'MY_VALUE1',
-                NEWENV2: 'MY_VALUE2'
-            env 'NAME', "VALUE"
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
+
+            env NEWENV1: myValue1,
+                NEWENV2: myValue2
+
+            env 'NAME', myValue3
         }
 
         then:
-        stepScript.env != null
-        stepScript.env.containsKey('BUILD_TIMESTAMP')
-        stepScript.env.NEWENV1 == 'MY_VALUE1'
-        stepScript.env.NEWENV2 == 'MY_VALUE2'
-        stepScript.env.NAME == 'VALUE'
+        assert stepScript.env != null
+        assert stepScript.env.containsKey(BUILD_TIMESTAMP_ENV_NAME)
+        assert stepScript.env.NEWENV1 == myValue1
+        assert stepScript.env.NEWENV2 == myValue2
+        assert stepScript.env.NAME == myValue3
     }
 
     def "verify library load from the source"() {
         when:
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
+        Script stepScript = runner.load {
+            sharedLibrary(TEST_LIB_NAME, TEST_LIB_PATH)
             script getClass().getResource('/dummyScript.groovy').toURI().toString()
         }
 
         then:
-        stepScript.varScript() == 'var script'
+        assert stepScript.varScript() == LIBRARY_SCRIPT_RESULT
     }
 
     def "verify method mock"() {
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
-            method "mockedMethod", [String.class], { str -> return "Hello, ${str}" }
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
+            method('mockedMethod', [String]) { str -> return "Hello, ${str}" }
         }
 
         then:
-        stepScript.mockedMethod("dude") == 'Hello, dude'
+        assert stepScript.mockedMethod('dude') == 'Hello, dude'
     }
 
     def "verify property mock"() {
+        given:
+        String testValue = 'mock for scm'
+
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
-            property "scm", "mock for scm"
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
+            property 'scm', testValue
         }
 
         then:
-        stepScript.scm == "mock for scm"
+        assert stepScript.scm == testValue
     }
 
     def "verify job parameter mock"() {
+        given:
+        String testParamName = 'user_param'
+        String testParamValue = 'JOB_PARAMETER'
+
         when:
-        def stepScript = runner.load {
-            script scriptUnderTest
-            param "user_param", "JOB_PARAMETER"
+        Script stepScript = runner.load {
+            script SCRIPT_UNDER_TEST
+            param testParamName, testParamValue
         }
 
         then:
-        stepScript.params['user_param'] == "JOB_PARAMETER"
+        assert stepScript.params[testParamName] == testParamValue
     }
 
     def "verify sh mocking with script handler (deprecated style)"() {
         when:
-        def isMockScriptCalled = false
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
+        boolean isMockScriptCalled = false
+        Script stepScript = runner.load {
+            sharedLibrary(TEST_LIB_NAME, TEST_LIB_PATH)
             scriptHandlers['test-sh'] = [
-                    regexp : /echo 123/,
+                    regexp: /echo 123/,
                     handler: { scriptParams -> return isMockScriptCalled = true }
             ]
+            // negative test:
+            // declare another handler to make sure it was no called
             scriptHandlers += [
                 anotherMock: [
-                    regexp : /echo 321/,
+                    regexp: /echo 321/,
                     handler: { scriptParams -> return isMockScriptCalled = false }
                 ]
             ]
-            script scriptUnderTest
+            script SCRIPT_UNDER_TEST
 
         }
         then:
-        stepScript.varScript() == 'var script'
-        isMockScriptCalled
+        assert stepScript.varScript() == LIBRARY_SCRIPT_RESULT
+        assert isMockScriptCalled
     }
 
     def "verify sh mocking with script handler (new style)"() {
         when:
-        def isMockScriptCalled = false
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
-            script scriptUnderTest
+        boolean isMockScriptCalled = false
+        Script stepScript = runner.load {
+            sharedLibrary(TEST_LIB_NAME, TEST_LIB_PATH)
+            script SCRIPT_UNDER_TEST
 
             shell {
-                handler 'test-sh', [
-                        regexp : /echo 123/,
-                        handler: { scriptParams -> return isMockScriptCalled = true }
+                handler 'test-sh-new', [
+                        regexp: /echo 123/,
+                        handler: { scriptParams -> return isMockScriptCalled = true },
                 ]
             }
 
         }
         then:
-        stepScript.varScript() == 'var script'
-        isMockScriptCalled
+        assert stepScript.varScript() == LIBRARY_SCRIPT_RESULT
+        assert isMockScriptCalled
     }
 
     def "verify library load with the script loader"() {
         when:
         runner.preferClassLoading = false
-        def stepScript = runner.load {
-            sharedLibrary("test-lib", 'src/test/resources/')
-            script scriptUnderTest
+        Script stepScript = runner.load {
+            sharedLibrary(TEST_LIB_NAME, TEST_LIB_PATH)
+            script SCRIPT_UNDER_TEST
         }
         then:
-        stepScript.varScript() == 'var script'
-        stepScript() == 'testresult'
+        assert stepScript.varScript() == LIBRARY_SCRIPT_RESULT
+        assert stepScript() == PIPELINE_SCRIPT_RESULT
     }
 
     def "should call a mocked declarative pipeline"() {
         when:
-        def testingEcho = []
-        def scriptStep = runner.load {
-            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
-            method "echo", [String.class], { str -> testingEcho.add(str) }
+        List testingEcho = []
+        Script scriptStep = runner.load {
+            script DECLARATIVE_SCRIPT_UNDER_TEST
+            method(ECHO_METHOD_NAME, [String]) { str -> testingEcho.add(str) }
         }
         scriptStep()
+
         then:
-        testingEcho[0] == "Hello world!"
-        testingEcho[1] == "Oh, Happy days!"
+        assert testingEcho[0] == ECHO_OUTPUT_1
+        assert testingEcho[1] == 'Oh, Happy days!'
     }
 
     def "should call a mocked declarative pipeline with unsuccessful build result"() {
         when:
-        def currentResult = runner.binding.getVariable('currentBuild')
-        def testingEcho = []
+        Object currentResult = runner.binding.getVariable('currentBuild')
+        List testingEcho = []
         def scriptStep = runner.load {
-            script getClass().getResource('/declarativePipelineExample.groovy').toURI().toString()
-            method "echo", [String.class], { str ->
+            script DECLARATIVE_SCRIPT_UNDER_TEST
+            method(ECHO_METHOD_NAME, [String]) { str ->
                 testingEcho.add(str)
                 currentResult.result = 'FAILURE'
             }
         }
         scriptStep()
+
         then:
-        testingEcho[0] == 'Hello world!'
-        testingEcho[1] == 'Well, not so happy days...'
+        assert testingEcho[0] == ECHO_OUTPUT_1
+        assert testingEcho[1] == 'Well, not so happy days...'
     }
 
     def "should allow to use custom extension"() {
         given:
         boolean extWasCalled = false
+        String testValue = 'testValue'
 
         when:
-        def stepScript = runner.load {
+        Script stepScript = runner.load {
             addExtension(new BaseContextExt() {
-                @Override
-                String getExtName() {
-                    return "myExt"
-                }
+                String extName = 'myExt'
 
                 @Override
-                def setupExt(PipelineRunContext cnt) {
-                    cnt.property('testProp', 'testValue')
+                void setupExt(PipelineRunContext cnt) {
+                    cnt.property('testProp', testValue)
                 }
 
-                def doSomething() {
+                void doSomething() {
                     extWasCalled = true
                 }
             })
-            script scriptUnderTest
+            script SCRIPT_UNDER_TEST
             // call extension methods
             myExt {
                 doSomething()
@@ -231,7 +262,7 @@ class PipelineTestRunnerSpec extends Specification {
         }
 
         then:
-        assert stepScript.testProp == "testValue"
+        assert stepScript.testProp == testValue
         assert extWasCalled
     }
 }

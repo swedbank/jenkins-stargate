@@ -5,53 +5,57 @@ import groovy.util.logging.Log4j2
 
 @Log4j2
 class ShellExt extends BaseContextExt {
-    @Override
-    String getExtName() {
-        "shell"
-    }
+    final String extName = 'shell'
 
     @Override
-    def setupExt(PipelineRunContext context) {
+    void setupExt(PipelineRunContext context) {
         this.handler('git-rev-parse-head', [
                 regexp: /git rev-parse HEAD/,
-                handler: { scriptParams -> return '29480a51' }
+                handler: { scriptParams -> return '29480a51' },
         ])
         this.handler('git-show-name', [
                 regexp: /git show -s --pretty=%an/,
-                handler: { scriptParams -> return 'Test Username' }
+                handler: { scriptParams -> return 'Test Username' },
         ])
         this.handler('git-show-email', [
                 regexp: /git show -s --pretty=%ae/,
-                handler: { scriptParams -> return 'TestUsername@mail.some' }
+                handler: { scriptParams -> return 'TestUsername@mail.some' },
         ])
         this.handler('git-status', [
                 regexp: /git status */,
-                handler: { scriptParams -> return 'nothing to commit, working tree clean' }
+                handler: { scriptParams -> return 'nothing to commit, working tree clean' },
+        ])
+        this.handler('git-rev-parse-abbrev-ref-head', [
+                regexp: /git rev-parse --abbrev-ref HEAD/,
+                handler: { scriptParams -> return 'some/branch' },
         ])
         setupShellMockMethods(context)
     }
 
-    protected def setupShellMockMethods(PipelineRunContext context) {
-        context.method('sh', [Map], { shellMap ->
-            def res = scriptHandlers.find {
-                shellMap.script ==~ it.value.regexp }?.value?.handler(shellMap)
+    protected setupShellMockMethods(PipelineRunContext context) {
+        context.with {
+            method('sh', [Map]) { shellMap ->
+                Object res = scriptHandlers.find {
+                    shellMap.script ==~ it.value.regexp
+                }?.value?.handler(shellMap)
 
-            if (res == null) {
-                if (shellMap.returnStdout) {
-                    res = 'dummy response'
-                } else if (shellMap.returnStatus) {
-                    res = 0
+                if (res == null) {
+                    if (shellMap.returnStdout) {
+                        res = 'dummy response'
+                    } else if (shellMap.returnStatus) {
+                        res = 0
+                    }
                 }
+                return res
             }
-            return res
-        })
 
-        context.method('sh', [String], { scriptStr ->
-            def res = scriptHandlers.find {
-                scriptStr ==~ it.value.regexp }?.value?.handler([script: scriptStr])
-            return res == null ? 0 : res
-        })
-        return this
+            method('sh', [String]) { scriptStr ->
+                Object res = scriptHandlers.find {
+                    scriptStr ==~ it.value.regexp
+                }?.value?.handler([script: scriptStr])
+                return res == null ? 0 : res
+            }
+        }
     }
 
     // exposed names
@@ -64,12 +68,12 @@ class ShellExt extends BaseContextExt {
      *     handler: { scriptParams -> //....  }*
      * ]
      */
-    def handler(String name, Map handlerParams) {
+    void handler(String name, Map handlerParams) {
         log.info("New shell handler -> ${name}: ${handlerParams}")
         scriptHandlers[name] = handlerParams
     }
 
-    def handlers(Map<String, Map> handlers) {
+    void handlers(Map<String, Map> handlers) {
         handlers.each { String key, Map value ->
             handler(key, value)
         }

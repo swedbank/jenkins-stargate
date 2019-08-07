@@ -1,6 +1,6 @@
 # Jenkins-Pipeline-Test
 
-The pipeline unit testing library based on te [JenkinsPipelineUnit](https://github.com/jenkinsci/JenkinsPipelineUnit) test framework . 
+The pipeline unit testing library based on the [JenkinsPipelineUnit](https://github.com/jenkinsci/JenkinsPipelineUnit) test framework . 
 It provides nice groovy DSL and some additional extensions to make pipeline testing easier.
 
 This library allows to: 
@@ -65,7 +65,8 @@ You can mock environment variables, build properties, build parameters and jenki
 All those mocking functions (``env``, ``property``, ``param`` and ``method``) can be called more the one inside the run/load closure.
 
 By default the ``Jenkins-Pipeline-Test`` library will mock many of the jenkins default methods for you, like
-``node, sh, pipeline, stage, sshagent, withCredentials`` etc. See the ``\extension\CommonMocksExt.groovy`` file for the complete list. 
+``node, sh, pipeline, stage, sshagent, withCredentials`` etc. 
+See the ``\extension\*.groovy`` files for the complete list. 
 
 
 ### Mocking shell scripts
@@ -103,7 +104,7 @@ If you use jenkins shared libraries (annotated with ``@Library``), you can pre-l
         script "/path/to/pipleine"
     }
     
-I you are testing jenkins shared library code, and your ``/vars/*.groovy`` files depend on each other, 
+If you are testing jenkins shared library code, and your ``/vars/*.groovy`` files depend on each other, 
 you can load library from current folder without specifying second argument (targetPath): 
 
     def testResult = PipelineTestRunner().run {
@@ -151,14 +152,11 @@ add nested DSL closures to the context closure. Check this example:
     def stepScript = PipelineTestRunner().load {
             addExtension(new BaseContextExt() {
                 // provide extension name 
-                @Override
-                String getExtName() {
-                    return "myExt"
-                }
+                String extName = "myExt"
                 
                 // this method will be called first, once extension is added
                 @Override
-                def setupExt(PipelineRunContext cnt) {
+                void setupExt(PipelineRunContext cnt) {
                     cnt.property('testProp', 'testValue')
                 }
     

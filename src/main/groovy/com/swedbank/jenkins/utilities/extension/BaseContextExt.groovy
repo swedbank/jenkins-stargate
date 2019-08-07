@@ -13,9 +13,9 @@ abstract class BaseContextExt {
      * Performs initialization and setup of the extension object.
      * Place initial methods mocking and vars initialization into that method
      */
-    abstract def setupExt(PipelineRunContext cnt)
+    abstract void setupExt(PipelineRunContext cnt)
 
-    def callExt(PipelineRunContext context, Closure cl) {
+    void callExt(PipelineRunContext context, Closure cl) {
         cl.resolveStrategy = Closure.DELEGATE_FIRST
         cl.delegate = this
         cl(context)

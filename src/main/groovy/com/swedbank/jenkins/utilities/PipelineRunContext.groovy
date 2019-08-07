@@ -1,5 +1,7 @@
 package com.swedbank.jenkins.utilities
 
+import static com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration.library
+
 import com.lesfurets.jenkins.unit.MethodSignature
 import com.lesfurets.jenkins.unit.global.lib.SourceRetriever
 import com.swedbank.jenkins.utilities.extension.BaseContextExt
@@ -11,13 +13,16 @@ import groovy.util.logging.Log4j2
 
 import java.text.SimpleDateFormat
 
-import static com.lesfurets.jenkins.unit.global.lib.LibraryConfiguration.library
-
 /**
  * Holds the setup information for the pipeline unit framework
  */
 @Log4j2
 final class PipelineRunContext {
+
+    public static final String ENVIRONMENT_BLOCK_VARIABLE_NAME = 'env'
+    public static final String SCRIPT_HANDLERS = 'scriptHandlers'
+    private static final String SHELL_DEPRECATION_MESSAGE = 'Deprecated! Adding new script handler. ' +
+            "Use shell { handler 'name' params } instead"
 
     static class Builder {
         PipelineRunContext runContext
@@ -30,57 +35,58 @@ final class PipelineRunContext {
             this.runContext = new PipelineRunContext(binding, helper)
         }
 
-        def setupDefaultEnv() {
+        Builder setupDefaultEnv() {
             runContext.env([
-                    "BUILD_TIMESTAMP": new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())])
+                    'BUILD_TIMESTAMP': new SimpleDateFormat(
+                            'MM/dd/yyyy HH:mm:ss', Locale.US).format(new Date())])
             runContext.property('scm', [:])
             runContext.property('params', [:])
             return this
         }
 
-        def setupDefaultExtensions() {
+        Builder setupDefaultExtensions() {
             addCustomExtension(new ShellExt())
             addCustomExtension(new CommonMocksExt())
             addCustomExtension(new DeclarativePipelineExt())
             return this
         }
 
-        def addCustomExtension(BaseContextExt ext) {
+        Builder addCustomExtension(BaseContextExt ext) {
             runContext.addExtension(ext)
             return this
         }
 
-        def build() {
+        PipelineRunContext build() {
             return runContext
         }
     }
 
-    protected Binding binding
-    protected PipelineClassLoaderTestHelper helper
+    Binding binding
+    PipelineClassLoaderTestHelper helper
     String scriptPath
 
-    protected  PipelineRunContext(Binding binding, PipelineClassLoaderTestHelper helper) {
+    private PipelineRunContext(Binding binding, PipelineClassLoaderTestHelper helper) {
         this.binding = binding
         this.helper = helper
 
         // Set metaClass property to ExpandoMetaClass instance, so we
         // can add dynamic methods.
-        def mc = new ExpandoMetaClass(PipelineRunContext, false, true)
+        ExpandoMetaClass mc = new ExpandoMetaClass(PipelineRunContext, false, true)
         mc.initialize()
         this.metaClass = mc
     }
 
-    def addExtension(BaseContextExt ext) {
+    void addExtension(BaseContextExt ext) {
         ext.setupExt(this)
         // set two additional methods
         // 1. Same as the extension name to accept only closure
         // 2. The extension object itself to have access to internal properties.
         // #2 is not really required, but can be useful to support deprecated api
-        this.metaClass."${ext.getExtName()}" = { Closure cl -> ext.callExt(this, cl) }
-        this.metaClass."${ext.getExtName()}__object" = ext
+        this.metaClass."${ext.extName}" = { Closure cl -> ext.callExt(this, cl) }
+        this.metaClass."${ext.extName}__object" = ext
     }
 
-    def protected setMapVariable(String varName, String key, Object value, Boolean replace=false) {
+    private void setMapVariable(String varName, String key, Object value, Boolean replace=true) {
         Map currentVar = [:]
         if (binding.hasVariable(varName)) {
             currentVar = binding.getVariable((varName)) as Map
@@ -103,11 +109,11 @@ final class PipelineRunContext {
     /**
      * Set environment variables
      */
-    def env(String name, String value, Boolean replace=true) {
-        setMapVariable('env', name, value, replace)
+    void env(String name, String value, Boolean replace=true) {
+        setMapVariable(ENVIRONMENT_BLOCK_VARIABLE_NAME, name, value, replace)
     }
 
-    def env(Map<String, String> envVars, Boolean replace=false) {
+    void env(Map<String, String> envVars, Boolean replace=true) {
         envVars.each { key, value ->
             env(key, value, replace)
         }
@@ -116,7 +122,7 @@ final class PipelineRunContext {
     /**
      * Declares the script parameter. Will be accessible directly from pipeline
      */
-    def property(String name, Object value) {
+    void property(String name, Object value) {
         this.binding.setVariable(name, value)
         log.info("New property -> ${name}: '${value}'")
     }
@@ -125,14 +131,14 @@ final class PipelineRunContext {
      * Declares the job parameter. Will be accessible through the params.<param_name>
      *     in the pipeline scripts.
      */
-    def param(String name, Object value, Boolean replace=true) {
+    void param(String name, Object value, Boolean replace=true) {
         setMapVariable('params', name, value, replace)
     }
 
     Boolean printStack = true
 
-    def sharedLibrary(String name, String targetPath='.',
-                      String version="master",
+    void sharedLibrary(String name, String targetPath='.',
+                      String version='master',
                       Boolean allowOverride=true,
                       Boolean implicit=true,
                       SourceRetriever retriever=null) {
@@ -151,33 +157,31 @@ final class PipelineRunContext {
         log.info("New library -> ${name}: [targetPath: '${targetPath}']")
     }
 
-    def method(String name, List<Class> args = [], Closure closure) {
+    void method(String name, List<Class> args = [], Closure closure) {
         this.method(MethodSignature.method(name,
                 args.toArray(new Class[args?.size()])), closure)
     }
 
-    def method(MethodSignature signature, Closure cl) {
-        if (signature != null) {
-            log.info("Method mock -> ${signature}")
-            helper.registerAllowedMethod(signature, cl ?: { -> })
-        }
+    void method(MethodSignature signature, Closure cl) {
+        log.info("Method mock -> ${signature}")
+        helper.registerAllowedMethod(signature, cl ?: { -> })
     }
 
     // Backward compatibility with the old style calling of the library
-    def propertyMissing(String name, value) {
-        if (name == 'env') {
+    Object propertyMissing(String name, Object value) {
+        if (name == ENVIRONMENT_BLOCK_VARIABLE_NAME) {
             return this.env(value)
-        } else if (name == 'scriptHandlers') {
-            log.info("Deprecated! Adding new script handler. Use shell { handler 'name' params } instead")
+        } else if (name == SCRIPT_HANDLERS) {
+            log.warn(SHELL_DEPRECATION_MESSAGE)
             return this.shell__object.handlers(value)
         }
         throw new MissingPropertyException(name)
     }
-    def propertyMissing(String name) {
-        if (['env'].contains(name)) {
+    Object propertyMissing(String name) {
+        if ([ENVIRONMENT_BLOCK_VARIABLE_NAME].contains(name)) {
             return [:]
-        } else if (name == 'scriptHandlers') {
-            log.info("Deprecated! Adding new script handler. Use shell { handler 'name' params } instead")
+        } else if (name == SCRIPT_HANDLERS) {
+            log.warn(SHELL_DEPRECATION_MESSAGE)
             return this.shell__object.scriptHandlers
         }
         throw new MissingPropertyException(name)

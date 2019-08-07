@@ -1,12 +1,12 @@
 package com.swedbank.jenkins.utilities.utils
 
+import static com.lesfurets.jenkins.unit.MethodSignature.method
+
 import com.lesfurets.jenkins.unit.InterceptingGCL
 import com.lesfurets.jenkins.unit.PipelineTestHelper
 import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.control.CompilerConfiguration
 import org.codehaus.groovy.runtime.InvokerHelper
-
-import static com.lesfurets.jenkins.unit.MethodSignature.method
 
 class PipelineClassLoaderTestHelper extends PipelineTestHelper {
 
@@ -49,7 +49,7 @@ class PipelineClassLoaderTestHelper extends PipelineTestHelper {
         return script
     }
 
-    def unRegisterAllowedMethod(String name, List<Class> args) {
+    void unRegisterAllowedMethod(String name, List<Class> args) {
         allowedMethodCallbacks.remove(method(name, args.toArray(new Class[args.size()])))
     }
 }
