@@ -38,7 +38,7 @@ final class PipelineRunContext {
         Builder setupDefaultEnv() {
             runContext.env([
                     'BUILD_TIMESTAMP': new SimpleDateFormat(
-                            'MM/dd/yyyy HH:mm:ss', Locale.US).format(new Date())])
+                            'yyyy-MM-dd HH:mm:ss', Locale.US).format(new Date())])
             runContext.property('scm', [:])
             runContext.property('params', [:])
             return this
