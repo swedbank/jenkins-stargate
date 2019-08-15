@@ -1,25 +1,15 @@
-buildscript {
-    repositories {
-        ivy {
-            url "$repositoryURL/$resolveRepository"
-        }
-        maven {
-            url "$repositoryURL/$resolveRepository"
-        }
-    }
-    dependencies {
-        classpath "tools.swedbank.gradle.plugin:ReleasePlugin:2.0.0"
-    }
+plugins {
+    id 'com.jfrog.bintray' version '1.8.4'
 }
 
 group 'tools.swedbank'
 
 apply plugin: 'groovy'
 apply plugin: 'jacoco'
-apply plugin: 'tools.swedbank.gradle.plugin.releaseplugin'
+apply plugin: 'com.jfrog.bintray'
 
 repositories {
-    addAll(buildscript.repositories)
+    jcenter()
 }
 
 dependencies {
@@ -27,8 +17,6 @@ dependencies {
     compile 'com.lesfurets:jenkins-pipeline-unit:1.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.12.0'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.12.0'
-
-
 
     testCompile 'org.hamcrest:hamcrest-core:1.3'
     testCompile ('org.spockframework:spock-core:1.1-groovy-2.4') {
