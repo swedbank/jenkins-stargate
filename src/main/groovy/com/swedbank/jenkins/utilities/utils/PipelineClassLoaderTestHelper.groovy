@@ -3,6 +3,7 @@ package com.swedbank.jenkins.utilities.utils
 import static com.lesfurets.jenkins.unit.MethodSignature.method
 
 import com.lesfurets.jenkins.unit.InterceptingGCL
+import com.lesfurets.jenkins.unit.MethodSignature
 import com.lesfurets.jenkins.unit.PipelineTestHelper
 import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.control.CompilerConfiguration
@@ -51,5 +52,9 @@ class PipelineClassLoaderTestHelper extends PipelineTestHelper {
 
     void unRegisterAllowedMethod(String name, List<Class> args) {
         allowedMethodCallbacks.remove(method(name, args.toArray(new Class[args.size()])))
+    }
+
+    boolean hasRegisteredMethod(MethodSignature methodSignature) {
+        return allowedMethodCallbacks.containsKey(methodSignature)
     }
 }

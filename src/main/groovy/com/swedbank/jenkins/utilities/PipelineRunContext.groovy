@@ -8,6 +8,7 @@ import com.swedbank.jenkins.utilities.extension.BaseContextExt
 import com.swedbank.jenkins.utilities.extension.CommonMocksExt
 import com.swedbank.jenkins.utilities.extension.DeclarativePipelineExt
 import com.swedbank.jenkins.utilities.extension.ShellExt
+import com.swedbank.jenkins.utilities.extension.UtilitiesExt
 import com.swedbank.jenkins.utilities.utils.PipelineClassLoaderTestHelper
 import groovy.util.logging.Log4j2
 
@@ -48,6 +49,7 @@ final class PipelineRunContext {
             addCustomExtension(new ShellExt())
             addCustomExtension(new CommonMocksExt())
             addCustomExtension(new DeclarativePipelineExt())
+            addCustomExtension(new UtilitiesExt())
             return this
         }
 
