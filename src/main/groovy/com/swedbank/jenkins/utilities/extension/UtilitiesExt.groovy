@@ -9,7 +9,7 @@ class ValidationRuleMock {
 
     String[] callStack = []
 
-    Object methodMissing(String name, Object args) {\
+    Object methodMissing(String name, Object args) {
         callStack += name
         return new ValidationRuleMock()
     }
@@ -21,22 +21,16 @@ class ValidationRuleMock {
 class UtilitiesExt extends BaseContextExt {
     public static final String VALIDATE_PARAMETERS = 'validateParameters'
     public static final String VALIDATION_RULE = 'validationRule'
+    final String extName = 'utilities'
 
     PipelineRunContext context
-
-    @Override
-    String getExtName() {
-        return 'utilities'
-    }
 
     @Override
     void setupExt(PipelineRunContext cnt) {
         context = cnt
         cnt.with {
-            method(VALIDATE_PARAMETERS, [Map, List], { map, list ->
-                return true })
-            method(VALIDATION_RULE, [Map], { map ->
-                return new ValidationRuleMock() })
+            method(VALIDATE_PARAMETERS, [Map, List]) { map, list -> return true }
+            method(VALIDATION_RULE, [Map]) { map -> return new ValidationRuleMock() }
         }
     }
 

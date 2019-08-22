@@ -1,6 +1,6 @@
-def call() {
+boolean call() {
     return validateParameters([:], [
             validationRule(param: 'name1').notNull().notEmpty().notRobot(),
-            validationRule(param: 'name1').notNull().notEmpty().notAnyMethod()
+            validationRule(param: 'name2').notNull().notEmpty().notAnyMethod(),
     ])
 }

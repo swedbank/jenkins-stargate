@@ -6,6 +6,7 @@ import org.junit.Test
 import spock.lang.Specification
 
 class UtilitiesExtSpec extends Specification {
+    public static final String VALIRATION_TEST_SCRIPT = '/validateParametersExample.groovy'
 
     @Test void 'should_mock_validation_manager'() {
         given:
@@ -49,7 +50,7 @@ class UtilitiesExtSpec extends Specification {
 
         when:
         Script validationTestScript = runner.load {
-            script getClass().getResource('/validateParametersExample.groovy').toURI().toString()
+            script getClass().getResource(VALIRATION_TEST_SCRIPT).toURI().toString()
         }
 
         then:
@@ -61,7 +62,7 @@ class UtilitiesExtSpec extends Specification {
         given:
         PipelineTestRunner runner = new PipelineTestRunner()
         Script validationTestScript = runner.load {
-            script getClass().getResource('/validateParametersExample.groovy').toURI().toString()
+            script getClass().getResource(VALIRATION_TEST_SCRIPT).toURI().toString()
             utilities {
                 disableValidationManagerMocks()
             }
