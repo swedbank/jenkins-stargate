@@ -22,7 +22,7 @@ class UtilitiesExtSpec extends Specification {
         assert context.helper.hasRegisteredMethod(
                 MethodSignature.method(UtilitiesExt.VALIDATE_PARAMETERS, Map, List))
         assert context.helper.hasRegisteredMethod(
-                MethodSignature.method(UtilitiesExt.VALIDATION_RULE, Map))
+                MethodSignature.method(UtilitiesExt.VALIDATION_RULE, String))
     }
 
     @Test void 'should_be_able_to_remove_mock'() {
@@ -41,7 +41,7 @@ class UtilitiesExtSpec extends Specification {
         assert !context.helper.hasRegisteredMethod(
                 MethodSignature.method(UtilitiesExt.VALIDATE_PARAMETERS, Map, List))
         assert !context.helper.hasRegisteredMethod(
-                MethodSignature.method(UtilitiesExt.VALIDATION_RULE, List))
+                MethodSignature.method(UtilitiesExt.VALIDATION_RULE, String))
     }
 
     @Test void 'should_be_to_use_validation_rules_from_vars'() {

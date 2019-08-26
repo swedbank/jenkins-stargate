@@ -1,6 +1,6 @@
 boolean call() {
     return validateParameters([:], [
-            validationRule(param: 'name1').notNull().notEmpty().notRobot(),
-            validationRule(param: 'name2').notNull().notEmpty().notAnyMethod(),
+            validationRule('name1').required().notNull().notEmpty().notRobot(),
+            validationRule('name2').optional().notNull().notEmpty().notAnyMethod(),
     ])
 }

@@ -30,14 +30,14 @@ class UtilitiesExt extends BaseContextExt {
         context = cnt
         cnt.with {
             method(VALIDATE_PARAMETERS, [Map, List]) { map, list -> return true }
-            method(VALIDATION_RULE, [Map]) { map -> return new ValidationRuleMock() }
+            method(VALIDATION_RULE, [String]) { paramName -> return new ValidationRuleMock() }
         }
     }
 
     void disableValidationManagerMocks() {
         if (this.context != null) {
             this.context.helper.unRegisterAllowedMethod(VALIDATE_PARAMETERS, [Map, List])
-            this.context.helper.unRegisterAllowedMethod(VALIDATION_RULE,  [Map])
+            this.context.helper.unRegisterAllowedMethod(VALIDATION_RULE,  [String])
         }
     }
 }
